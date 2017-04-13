@@ -10,6 +10,7 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi._
+import com.intellij.util.DocumentUtil
 import org.jetbrains.plugins.scala.extensions
 import org.jetbrains.plugins.scala.extensions.implementation.iterator.PrevSiblignsIterator
 import org.jetbrains.plugins.scala.lang.completion.ScalaCompletionUtil
@@ -235,11 +236,16 @@ class WorksheetIncrementalEditorPrinter(editor: Editor, viewer: Editor, file: Sc
 
     messagesBuffer.clear()
 
-    val MessageInfo(msg, vertOffset, horizontalOffset, severity) = extractInfoFromAllText(str).getOrElse((str, 0, 0, WorksheetCompiler.InfoSeverity))
+    val MessageInfo(msg, vertOffset, horizontalOffset, severity) = extractInfoFromAllText(str).getOrElse(return hasErrors)
     
     val position = {
       val p = extensions.inReadAction { originalEditor.offsetToLogicalPosition(offset) }
-      new LogicalPosition(p.line + vertOffset, p.column + horizontalOffset)
+      
+      val absoluteLineNumber = p.line + vertOffset
+      val documentOffset = 
+        DocumentUtil.getFirstNonSpaceCharOffset(originalDocument, absoluteLineNumber) - originalDocument.getLineStartOffset(absoluteLineNumber)
+
+      new LogicalPosition(absoluteLineNumber, documentOffset + horizontalOffset)
     }
     
     
@@ -262,8 +268,19 @@ class WorksheetIncrementalEditorPrinter(editor: Editor, viewer: Editor, file: Sc
     if (indexOfNl == -1) return None
 
     val indexOfC = toMatch.lastIndexOf('^')
-    val horOffset = if (indexOfC < indexOfNl) 0 else indexOfC - indexOfNl
-    val allMessageStrings = toMatch.substring(0, indexOfNl)
+    val allMessageStrings = toMatch.substring(0, indexOfNl).trim
+    
+    val horOffset = {
+      val baseOffset = if (indexOfC < indexOfNl) 0 else toMatch.substring(indexOfNl, indexOfC).dropWhile(_ == '\n').length
+      val i = allMessageStrings.lastIndexOf('\n')
+      
+      if (i != -1) {
+        val midOffset = allMessageStrings.substring(i + 1).prefixLength(_ == ' ')
+        if (allMessageStrings.substring(midOffset + i + 1).startsWith(VAL_RES_START)) return None
+        
+        Math.max(0, baseOffset - midOffset)
+      } else 0
+    }
     
     val matcher = CONSOLE_MESSAGE_PATTERN matcher allMessageStrings
     val (textWoConsoleLine, lineNumStr) = if (matcher.find()) (allMessageStrings.substring(matcher.end()), matcher.group(1)) else (allMessageStrings, "0")
@@ -297,6 +314,7 @@ object WorksheetIncrementalEditorPrinter {
   private val REPL_CHUNK_END = "$$worksheet$$repl$$chunk$$end$$"
   private val REPL_LAST_CHUNK_PROCESSED = "$$worksheet$$repl$$last$$chunk$$processed$$"
   
+  private val VAL_RES_START = "val $ires"
   private val CONSOLE_ERROR_START = "<console>:"
   private val CONSOLE_MESSAGE_PATTERN = {
     val regex = "\\s*(\\d+)" + Pattern.quote(":") + "\\s*"
