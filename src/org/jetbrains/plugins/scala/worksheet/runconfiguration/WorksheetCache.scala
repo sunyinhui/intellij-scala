@@ -1,11 +1,17 @@
 package org.jetbrains.plugins.scala.worksheet.runconfiguration
 
+import java.io.File
+
 import com.intellij.openapi.components.ProjectComponent
-import com.intellij.openapi.editor.{Editor, EditorFactory}
 import com.intellij.openapi.editor.impl.EditorImpl
+import com.intellij.openapi.editor.{Editor, EditorFactory}
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.util.containers.WeakHashMap
+import org.jetbrains.plugins.scala.worksheet.runconfiguration.WorksheetCache.BoundCompilationInfo
 import org.jetbrains.plugins.scala.worksheet.ui.{WorksheetEditorPrinterBase, WorksheetIncrementalEditorPrinter}
+
+import scala.collection.mutable
 
 /**
   * User: Dmitry.Naydanov
@@ -15,6 +21,22 @@ class WorksheetCache extends ProjectComponent {
   private val allViewers = new WeakHashMap[Editor, List[(Editor)]]()
   private val allReplPrinters = new WeakHashMap[Editor, WorksheetEditorPrinterBase]()
   private val patchedEditors = new WeakHashMap[Editor, String]()
+
+  private val tempFileCache = mutable.HashMap[String, BoundCompilationInfo]()
+
+  def updateOrCreateCompilationInfo(filePath: String, fileName: String): (Int, File, File) = {
+    tempFileCache.get(filePath) match {
+      case Some(info@BoundCompilationInfo(src, out)) if src.exists() && out.exists() =>
+        info.incrementI()
+        (info.getI, src, out)
+      case _ =>
+        val src = FileUtil.createTempFile(fileName, null, true)
+        val out = FileUtil.createTempDirectory(fileName, null, true)
+        
+        tempFileCache.put(filePath, BoundCompilationInfo(src, out))
+        (0, src, out)
+    }
+  }
   
   def getPrinter(inputEditor: Editor): Option[WorksheetEditorPrinterBase] = Option(allReplPrinters get inputEditor)
   
@@ -114,4 +136,11 @@ class WorksheetCache extends ProjectComponent {
 
 object WorksheetCache {
   def getInstance(project: Project): WorksheetCache = project.getComponent(classOf[WorksheetCache])
+  
+  private case class BoundCompilationInfo(generatedSrc: File, outTemp: File) {
+    private var iterNumber = 0
+    
+    def getI: Int = iterNumber
+    def incrementI(): Unit = iterNumber += 1
+  }
 }
