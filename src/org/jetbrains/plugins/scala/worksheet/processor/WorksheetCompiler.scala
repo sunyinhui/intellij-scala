@@ -98,7 +98,7 @@ class WorksheetCompiler(editor: Editor, worksheetFile: ScalaFile, callback: (Str
     }
 
     val (iteration, tempFile, outputDir) = 
-      if (!isRepl) WorksheetBoundCompilationInfo.updateOrCreate(worksheetVirtual.getCanonicalPath, worksheetFile.getName)
+      if (!isRepl) WorksheetCache.getInstance(project).updateOrCreateCompilationInfo(worksheetVirtual.getCanonicalPath, worksheetFile.getName)
       else (0, null, null)
     if (runType != NonServer) CompileServerLauncher.ensureServerRunning(project)
 
