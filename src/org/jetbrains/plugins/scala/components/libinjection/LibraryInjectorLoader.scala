@@ -14,7 +14,8 @@ import com.intellij.openapi.module._
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.util.ProgressIndicatorBase
 import com.intellij.openapi.project.{DumbService, Project}
-import com.intellij.openapi.roots.libraries.{Library, LibraryTable, LibraryTablesRegistrar}
+import com.intellij.openapi.roots.impl.libraries.ProjectLibraryTable
+import com.intellij.openapi.roots.libraries.{Library, LibraryTable}
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.{JarFileSystem, VirtualFile, VirtualFileManager}
 import com.intellij.psi.search.{FilenameIndex, GlobalSearchScope}
@@ -154,11 +155,11 @@ class LibraryInjectorLoader(val project: Project) extends ProjectComponent {
 
   override def initComponent(): Unit = {
     myInjectorCacheDir.mkdirs()
-    LibraryTablesRegistrar.getInstance().getLibraryTable(project).addListener(myLibraryTableListener)
+    Option(ProjectLibraryTable.getInstance(project)).foreach(_.addListener(myLibraryTableListener))
   }
 
   override def disposeComponent(): Unit = {
-    LibraryTablesRegistrar.getInstance().getLibraryTable(project).removeListener(myLibraryTableListener)
+    Option(ProjectLibraryTable.getInstance(project)).foreach(_.removeListener(myLibraryTableListener))
   }
 
   override def getComponentName: String = "ScalaLibraryInjectorLoader"
