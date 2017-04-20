@@ -3,7 +3,6 @@ package org.jetbrains.jps.incremental.scala.remote
 import java.io._
 import java.net.{InetAddress, Socket}
 
-import com.intellij.util.Base64Converter
 import com.martiansoftware.nailgun.NGConstants
 import org.jetbrains.jps.incremental.messages.BuildMessage.Kind
 import org.jetbrains.jps.incremental.scala._
@@ -12,7 +11,7 @@ import org.jetbrains.jps.incremental.scala._
  * @author Pavel Fatin
  * @author Dmitry Naydanov
  */
-trait RemoteResourceOwner {
+trait RemoteResourceOwner extends Base64User {
   protected val address: InetAddress
   protected val port: Int
   
@@ -20,7 +19,7 @@ trait RemoteResourceOwner {
   protected val serverAlias = "compile-server"
 
   def send(command: String, arguments: Seq[String], client: Client) {
-    val encodedArgs = arguments.map(s => Base64Converter.encode(s.getBytes("UTF-8")))
+    val encodedArgs = arguments.map(s => encodeBase64(s.getBytes("UTF-8")))
     using(new Socket(address, port)) { socket =>
       using(new DataOutputStream(new BufferedOutputStream(socket.getOutputStream))) { output =>
         createChunks(command, encodedArgs).foreach(_.writeTo(output))
@@ -43,7 +42,7 @@ trait RemoteResourceOwner {
           return
         case Chunk(NGConstants.CHUNKTYPE_STDOUT, data) =>
           try {
-            val event = Event.fromBytes(Base64Converter.decode(data))
+            val event = Event.fromBytes(decodeBase64(data))
             processor.process(event)
           } catch {
             case e: Exception =>

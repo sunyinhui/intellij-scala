@@ -14,7 +14,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
-import com.intellij.util.Base64Converter
 import org.jetbrains.jps.incremental.ModuleLevelBuilder.ExitCode
 import org.jetbrains.jps.incremental.messages.BuildMessage
 import org.jetbrains.jps.incremental.messages.BuildMessage.Kind
@@ -33,7 +32,8 @@ import org.jetbrains.plugins.scala.worksheet.ui.{WorksheetEditorPrinterBase, Wor
  * Date: 1/28/14
  */
 class RemoteServerConnector(module: Module, worksheet: File, output: File, worksheetClassName: String, 
-  replArgs: Option[ReplModeArgs], needsCheck: Boolean) extends RemoteServerConnectorBase(module: Module, Seq(worksheet), output, needsCheck) {
+                            replArgs: Option[ReplModeArgs], needsCheck: Boolean) 
+  extends RemoteServerConnectorBase(module: Module, Seq(worksheet), output, needsCheck) with Base64User {
 
   val runType: WorksheetMakeType = WorksheetCompiler.getRunType(module.getProject)
 
@@ -68,8 +68,8 @@ class RemoteServerConnector(module: Module, worksheet: File, output: File, works
           val eventClient = new ClientEventProcessor(client)
           
           val encodedArgs = arguments map {
-            case "" => Base64Converter.encode("#STUB#" getBytes "UTF-8")
-            case s => Base64Converter.encode(s getBytes "UTF-8")
+            case "" => encodeBase64("#STUB#" getBytes "UTF-8")
+            case s => encodeBase64(s getBytes "UTF-8")
           }
 
           val errorHandler = new ErrorHandler {
@@ -84,7 +84,7 @@ class RemoteServerConnector(module: Module, worksheet: File, output: File, works
           }
 
           new NonServerRunner(project, Some(errorHandler)).buildProcess(encodedArgs, (text: String) => {
-            val event = Event.fromBytes(Base64Converter.decode(text.getBytes("UTF-8")))
+            val event = Event.fromBytes(decodeBase64(text.getBytes("UTF-8")))
             eventClient.process(event)
           })
       }
