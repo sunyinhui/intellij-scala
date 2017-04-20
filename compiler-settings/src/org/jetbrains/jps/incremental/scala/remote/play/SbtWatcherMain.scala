@@ -3,17 +3,16 @@ package org.jetbrains.jps.incremental.scala.remote.play
 import java.io.{BufferedWriter, OutputStreamWriter, PrintStream}
 import java.net.{InetAddress, Socket}
 
-import com.intellij.util.Base64Converter
 import com.martiansoftware.nailgun.NGContext
 import org.jetbrains.jps.incremental.messages.BuildMessage
-import org.jetbrains.jps.incremental.scala.remote.MessageEvent
+import org.jetbrains.jps.incremental.scala.remote.{Base64User, MessageEvent}
 import org.jetbrains.jps.incremental.scala.remote.play.WatcherCommands._
 
 /**
  * User: Dmitry.Naydanov
  * Date: 12.02.15.
  */
-object SbtWatcherMain {
+object SbtWatcherMain extends Base64User {
   private val IT_COMPLETED_MESSAGE = "Waiting for source changes... (press enter to interrupt)"
   private val MESSAGE_LIMIT = 12
   private val WAIT_TIME = 150
@@ -30,7 +29,7 @@ object SbtWatcherMain {
 
   private def handle(arguments: Seq[String], out: PrintStream) {
     def write2source(message: String) {
-      out.write(Base64Converter.encode(MessageEvent(BuildMessage.Kind.INFO, message, None, None, None).toBytes).getBytes)
+      out.write(encodeBase64(MessageEvent(BuildMessage.Kind.INFO, message, None, None, None).toBytes).getBytes)
     }
 
     def createConsumer(delegate: MessageConsumer) = new CachingMessageConsumer(delegate) {
@@ -38,7 +37,7 @@ object SbtWatcherMain {
         msg.trim.endsWith(IT_COMPLETED_MESSAGE) || msgCount > MESSAGE_LIMIT
     }
 
-    val decoded = arguments map Base64Converter.decode
+    val decoded = arguments map decodeBase64
 
     decoded.head match {
       case cm@(START | LOOP) =>
@@ -55,12 +54,12 @@ object SbtWatcherMain {
               writer.close()
             }
             catch {
-              case ex: Exception =>
+              case _: Exception =>
             }
           }
         } else new MessageConsumer {
           override def consume(message: String) {
-            val encoded = Base64Converter.encode(MessageEvent(BuildMessage.Kind.INFO, message, None, None, None).toBytes)
+            val encoded = encodeBase64(MessageEvent(BuildMessage.Kind.INFO, message, None, None, None).toBytes)
             out write encoded.getBytes
           }
         }

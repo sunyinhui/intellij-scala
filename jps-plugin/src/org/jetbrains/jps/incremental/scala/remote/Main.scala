@@ -4,7 +4,6 @@ package remote
 import java.io._
 import java.util.{Timer, TimerTask}
 
-import com.intellij.util.Base64Converter
 import com.martiansoftware.nailgun.NGContext
 import org.jetbrains.jps.incremental.messages.BuildMessage.Kind
 import org.jetbrains.jps.incremental.scala.local.LocalServer
@@ -14,11 +13,11 @@ import org.jetbrains.jps.incremental.scala.local.worksheet.WorksheetServer
  * @author Pavel Fatin
  * @author Dmitry Naydanov         
  */
-object Main {
+object Main extends Base64User {
   private val Server = new LocalServer()
   private val worksheetServer = new WorksheetServer
 
-  private var shutdownTimer: Timer = null
+  private var shutdownTimer: Timer = _
 
   def nailMain(context: NGContext) {
     cancelShutdown()
@@ -31,25 +30,7 @@ object Main {
   }
   
   private def make(arguments: Seq[String], out: PrintStream, standalone: Boolean) {
-    var hasErrors = false
-
-    val client = {
-      val eventHandler = (event: Event) => {
-        val encode = Base64Converter.encode(event.toBytes)
-        out.write((if (standalone && !encode.endsWith("=")) encode + "=" else encode).getBytes)
-      }
-      new EventGeneratingClient(eventHandler, out.checkError) {
-        override def error(text: String, source: Option[File], line: Option[Long], column: Option[Long]) {
-          hasErrors = true
-          super.error(text, source, line, column)
-        }
-
-        override def message(kind: Kind, text: String, source: Option[File], line: Option[Long], column: Option[Long]) {
-          if (kind == Kind.ERROR) hasErrors = true
-          super.message(kind, text, source, line, column)
-        }
-      }
-    }
+    val client = new MyEventGeneratingClient(standalone, out)
 
     val oldOut = System.out
     // Suppress any stdout data, interpret such data as error
@@ -59,15 +40,15 @@ object Main {
       val args = {
         val strings = arguments.map {
           arg => 
-            val s = new String(Base64Converter.decode(arg.getBytes), "UTF-8")
+            val s = new String(decodeBase64(arg.getBytes), "UTF-8")
             if (s == "#STUB#") "" else s
         }
         Arguments.from(strings)
       }
-      
+
       if (!worksheetServer.isRepl(args)) Server.compile(args.sbtData, args.compilerData, args.compilationData, client)
 
-      if (!hasErrors) worksheetServer.loadAndRun(args, out, client, standalone)
+      if (!client.hadErrors) worksheetServer.loadAndRun(args, out, client, standalone)
     } catch {
       case e: Throwable => 
         client.trace(e)
@@ -89,6 +70,28 @@ object Main {
       }
       shutdownTimer = new Timer()
       shutdownTimer.schedule(shutdownTask, delayMs)
+    }
+  }
+  
+  class MyEventGeneratingClient(standalone: Boolean, out: PrintStream) extends EventGeneratingClient(
+    (event: Event) => {
+      val encode = encodeBase64(event.toBytes)
+      out.write((if (standalone && !encode.endsWith("=")) encode + "=" else encode).getBytes)
+    }, 
+    out.checkError
+  ) {
+    private var hasErrors = false
+
+    def hadErrors: Boolean = hasErrors
+    
+    override def error(text: String, source: Option[File], line: Option[Long], column: Option[Long]) {
+      hasErrors = true
+      super.error(text, source, line, column)
+    }
+
+    override def message(kind: Kind, text: String, source: Option[File], line: Option[Long], column: Option[Long]) {
+      if (kind == Kind.ERROR) hasErrors = true
+      super.message(kind, text, source, line, column)
     }
   }
 }

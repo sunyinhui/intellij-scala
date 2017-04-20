@@ -4,11 +4,10 @@ import java.io._
 import java.net.URL
 import java.nio.ByteBuffer
 
-import com.intellij.util.Base64Converter
 import com.martiansoftware.nailgun.ThreadLocalPrintStream
 import org.jetbrains.jps.incremental.scala.data.CompilerJars
 import org.jetbrains.jps.incremental.scala.local.worksheet.compatibility.WorksheetArgsJava
-import org.jetbrains.jps.incremental.scala.remote.{Arguments, EventGeneratingClient, WorksheetOutputEvent}
+import org.jetbrains.jps.incremental.scala.remote.{Arguments, Base64User, EventGeneratingClient, WorksheetOutputEvent}
 
 import scala.collection.JavaConverters._
 
@@ -76,7 +75,7 @@ object WorksheetServer {
 
   case class ReplArgs(sessionId: String, codeChunk: String)
   
-  class MyEncodingOutputStream(delegateOut: PrintStream, standalone: Boolean) extends OutputStream {
+  class MyEncodingOutputStream(delegateOut: PrintStream, standalone: Boolean) extends OutputStream with Base64User {
     private var capacity = 1200
     private var buffer = ByteBuffer.allocate(capacity)
 
@@ -102,7 +101,7 @@ object WorksheetServer {
       if (buffer.position() == 0) return
       val event = WorksheetOutputEvent(new String(buffer.array(), 0, buffer.position()))
       buffer.clear()
-      val encode = Base64Converter.encode(event.toBytes)
+      val encode = encodeBase64(event.toBytes)
       delegateOut.write(if (standalone && !encode.endsWith("=")) (encode + "=").getBytes else encode.getBytes)
     }
   }

@@ -2,17 +2,16 @@ package org.jetbrains.jps.incremental.scala.remote.play
 
 import java.io.PrintStream
 
-import com.intellij.util.Base64Converter
 import com.martiansoftware.nailgun.NGContext
 import org.jetbrains.jps.incremental.messages.BuildMessage
-import org.jetbrains.jps.incremental.scala.remote.MessageEvent
+import org.jetbrains.jps.incremental.scala.remote.{Base64User, MessageEvent}
 import org.jetbrains.jps.incremental.scala.remote.play.WatcherCommands._
 
 /**
  * User: Dmitry.Naydanov
  * Date: 12.02.15.
  */
-object SbtWatcherMain {
+object SbtWatcherMain extends Base64User {
   private var currentExec: Option[(SbtWatcherExec, Seq[String])] = None
 
   def nailMain(context: NGContext) {
@@ -26,7 +25,7 @@ object SbtWatcherMain {
   private def handle(arguments: Seq[String], out: PrintStream) {
     val messageConsumer = new MessageConsumer {
       override def consume(message: String) {
-        out.write(Base64Converter.encode(MessageEvent(BuildMessage.Kind.INFO, message, None, None, None).toBytes).getBytes)
+        out.write(encodeBase64(MessageEvent(BuildMessage.Kind.INFO, message, None, None, None).toBytes).getBytes)
       }
     }
 
