@@ -24,12 +24,14 @@ import org.jetbrains.plugins.scala.lang.psi.api.ScalaFile
 import org.jetbrains.plugins.scala.worksheet.interactive.WorksheetAutoRunner
 import org.jetbrains.plugins.scala.worksheet.ui.{WorksheetEditorPrinterFactory, WorksheetFoldGroup, WorksheetUiConstructor}
 
+import scala.collection.mutable
+
 /**
  * User: Dmitry Naydanov
  * Date: 1/24/14
  */
 class WorksheetFileHook(private val project: Project) extends ProjectComponent {
-  private var statusDisplay: Option[InteractiveStatusDisplay] = None
+  private val statusDisplays = mutable.WeakHashMap[VirtualFile, InteractiveStatusDisplay]()
   
   override def disposeComponent() {}
 
@@ -91,7 +93,10 @@ class WorksheetFileHook(private val project: Project) extends ProjectComponent {
       val constructor = new WorksheetUiConstructor(panel, project)
 
       extensions.inReadAction {
-        statusDisplay = constructor.initTopPanel(panel, file, run, exec)
+        constructor.initTopPanel(panel, file, run, exec).foreach {
+          statusDisplay => statusDisplays.put(file, statusDisplay)
+        }
+        
         WorksheetFileHook.addReplAction(editor)
       }
 
@@ -102,13 +107,13 @@ class WorksheetFileHook(private val project: Project) extends ProjectComponent {
   def disableRun(file: VirtualFile, exec: Option[CompilationProcess]) {
     WorksheetFileHook.removeReplAction(file, project)
     cleanAndAdd(file, exec map (new StopWorksheetAction(_)))
-    statusDisplay.foreach(_.onStartCompiling())
+    statusDisplays.get(file).foreach(_.onStartCompiling())
   }
 
   def enableRun(file: VirtualFile, hasErrors: Boolean) {
     WorksheetFileHook.addReplAction(file, project)
     cleanAndAdd(file, Some(new RunWorksheetAction))
-    statusDisplay.foreach(display => if (hasErrors) display.onFailedCompiling() else display.onSuccessfulCompiling())
+    statusDisplays.get(file).foreach(display => if (hasErrors) display.onFailedCompiling() else display.onSuccessfulCompiling())
   }
 
   private def cleanAndAdd(file: VirtualFile, action: Option[TopComponentDisplayable]) {
@@ -209,10 +214,14 @@ object WorksheetFileHook {
 
   private def getPanel(file: VirtualFile): Option[WeakReference[MyPanel]] = Option(file2panel get file)
   
-  private def addReplAction(file: VirtualFile, project: Project) {
+  private def withAllEditors(file: VirtualFile, project: Project, ed: FileEditor => Unit) {
     extensions.inReadAction {
-      FileEditorManager.getInstance(project).getAllEditors(file) foreach addReplAction
+      FileEditorManager.getInstance(project).getAllEditors(file) foreach ed
     }
+  }
+  
+  private def addReplAction(file: VirtualFile, project: Project) {
+    withAllEditors(file, project, addReplAction)
   }
 
   private def addReplAction(editor: FileEditor) {
@@ -230,9 +239,7 @@ object WorksheetFileHook {
   }
   
   private def removeReplAction(file: VirtualFile, project: Project) {
-    extensions.inReadAction {
-      FileEditorManager.getInstance(project).getAllEditors(file) foreach removeReplAction
-    }
+    withAllEditors(file, project, removeReplAction)
   }
   
   private def removeReplAction(editor: FileEditor) {
