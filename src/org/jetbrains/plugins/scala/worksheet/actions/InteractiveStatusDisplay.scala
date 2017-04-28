@@ -1,14 +1,15 @@
 package org.jetbrains.plugins.scala.worksheet.actions
 
+import java.awt._
 import java.awt.geom.AffineTransform
-import java.awt.{Color, Component, Graphics, Graphics2D}
+import javax.swing._
 import javax.swing.border.LineBorder
-import javax.swing.{Icon, JComponent, JPanel}
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.roots.ScalableIconComponent
-import com.intellij.util.ui.{EmptyIcon, AnimatedIcon}
+import com.intellij.util.ui.{AnimatedIcon, EmptyIcon}
+import org.jetbrains.plugins.scala.ScalaBundle
 import org.jetbrains.plugins.scala.worksheet.ui.WorksheetUiConstructor
 
 /**
@@ -19,14 +20,18 @@ class InteractiveStatusDisplay extends TopComponentDisplayable {
   import InteractiveStatusDisplay._
   
   private val myPanel = new JPanel()
+  private val myRerunAction = new RerunWorksheetAction
   
   private val successIcon = createAnimatedIcon(InteractiveStatusDisplay.MY_COMPILE_ACTION, MY_OK_ICON, ICON_STEP_COUNT)
   private val failIcon = createAnimatedIcon(InteractiveStatusDisplay.MY_COMPILE_ACTION, MY_ERROR_ICON, ICON_STEP_COUNT)
   
-  private var current: AnimatedIcon = null
+  private var current: AnimatedIcon = _
+  private var swapped = false
   
   override def init(panel: JPanel): Unit = {
+    myPanel.setLayout(new BoxLayout(myPanel, BoxLayout.LINE_AXIS))
     myPanel.add(createSimpleIcon(EMPTY_ICON), 0)
+    
     panel.add(myPanel, 0)
     setBorder(OTHER_BORDER)
     WorksheetUiConstructor.fixUnboundMaxSize(myPanel)  
@@ -39,15 +44,27 @@ class InteractiveStatusDisplay extends TopComponentDisplayable {
   }
   
   def onFailedCompiling() {
+    if (swapped) return 
+    
     setCurrentIcon(failIcon)
     current.suspend()
     setBorder(ERROR_BORDER)
   }
   
   def onSuccessfulCompiling() {
+    if (swapped) return 
+    
     setCurrentIcon(successIcon)
     current.suspend()
     setBorder(OK_BORDER)
+  }
+  
+  def swapForRerun() {
+    myPanel.removeAll()
+    swapped = true
+
+    myRerunAction.init(myPanel)
+    myPanel.add(new JLabel(ScalaBundle.message(myRerunAction.bundleKey)), 1)
   }
   
   private def setBorder(border: LineBorder) {
@@ -59,8 +76,9 @@ class InteractiveStatusDisplay extends TopComponentDisplayable {
   private def isBorderEnabled = false //right now we don't need it (?) 
   
   private def setCurrentIcon(icon: AnimatedIcon) {
-    if (current == icon) return 
+    if (current == icon && !swapped) return 
     
+    swapped = false
     current = icon
     clearAndAdd()
   }

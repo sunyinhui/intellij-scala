@@ -90,8 +90,8 @@ class WorksheetDefaultEditorPrinter(originalEditor1: Editor, worksheetViewer1: E
     false
   }
 
-  override def internalError(errorMessage: String): Unit = {
-    super.internalError(errorMessage)
+  override def internalError(error: Throwable): Unit = {
+    super.internalError(error)
     terminated = true
   }
 

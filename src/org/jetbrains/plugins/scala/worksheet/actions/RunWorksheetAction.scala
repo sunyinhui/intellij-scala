@@ -45,11 +45,14 @@ class RunWorksheetAction extends AnAction with TopComponentAction {
   override def update(e: AnActionEvent) {
     super.update(e)
     
-    val shortcuts = KeymapManager.getInstance.getActiveKeymap.getShortcuts("Scala.RunWorksheet")
-    
-    if (shortcuts.nonEmpty) {
-      val shortcutText = " (" + KeymapUtil.getShortcutText(shortcuts(0)) + ")"
-      e.getPresentation.setText(ScalaBundle.message("worksheet.execute.button") + shortcutText)
+    shortcutId.foreach {
+      id =>
+        KeymapManager.getInstance.getActiveKeymap.getShortcuts(id).headOption.foreach {
+          shortcut =>
+            e.getPresentation.setText(
+              ScalaBundle.message(bundleKey) + (" (" + KeymapUtil.getShortcutText(shortcut) + ")")
+            )
+        }
     }
   }
 
@@ -63,7 +66,7 @@ class RunWorksheetAction extends AnAction with TopComponentAction {
 object RunWorksheetAction {
   private val runnerClassName = "org.jetbrains.plugins.scala.worksheet.MyWorksheetRunner"
 
-  def runCompiler(project: Project, auto: Boolean) {
+  def runCompiler(project: Project, auto: Boolean, fromScratch: Boolean = false) {
     UsageTrigger.trigger("scala.worksheet")
 
     if (project == null) return
@@ -77,7 +80,10 @@ object RunWorksheetAction {
 
     psiFile match {
       case file: ScalaFile if file.isWorksheetFile =>
-        val viewer = WorksheetCache.getInstance(project) getViewer editor
+        val worksheetCache = WorksheetCache.getInstance(project)
+        val viewer = worksheetCache getViewer editor
+
+        if (fromScratch) worksheetCache.clearCompilationInfo(file.getVirtualFile.getCanonicalPath)
 
         if (viewer != null && !WorksheetCompiler.isWorksheetReplMode(file)) { 
           ApplicationManager.getApplication.invokeAndWait(new Runnable {

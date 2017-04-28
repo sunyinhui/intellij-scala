@@ -16,7 +16,7 @@ import com.intellij.openapi.fileEditor._
 import com.intellij.openapi.project.DumbService.DumbModeListener
 import com.intellij.openapi.project.{DumbService, Project}
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.{PsiDocumentManager, PsiManager}
+import com.intellij.psi.{PsiDocumentManager, PsiFile, PsiManager}
 import com.intellij.util.ui.UIUtil
 import org.jetbrains.plugins.scala.compiler.CompilationProcess
 import org.jetbrains.plugins.scala.components.StopWorksheetAction
@@ -114,6 +114,10 @@ class WorksheetFileHook(private val project: Project) extends ProjectComponent {
     WorksheetFileHook.addReplAction(file, project)
     cleanAndAdd(file, Some(new RunWorksheetAction))
     statusDisplays.get(file).foreach(display => if (hasErrors) display.onFailedCompiling() else display.onSuccessfulCompiling())
+  }
+  
+  def installRerunAction(file: PsiFile) {
+    statusDisplays.get(file.getVirtualFile).foreach(_.swapForRerun())
   }
 
   private def cleanAndAdd(file: VirtualFile, action: Option[TopComponentDisplayable]) {
