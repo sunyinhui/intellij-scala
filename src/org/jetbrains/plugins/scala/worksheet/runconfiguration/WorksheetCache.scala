@@ -2,7 +2,7 @@ package org.jetbrains.plugins.scala.worksheet.runconfiguration
 
 import java.io.File
 
-import com.intellij.openapi.components.ProjectComponent
+import com.intellij.openapi.components.AbstractProjectComponent
 import com.intellij.openapi.editor.impl.EditorImpl
 import com.intellij.openapi.editor.{Editor, EditorFactory}
 import com.intellij.openapi.project.Project
@@ -17,7 +17,7 @@ import scala.collection.mutable
   * User: Dmitry.Naydanov
   * Date: 03.02.17.
   */
-class WorksheetCache extends ProjectComponent {
+class WorksheetCache(project: Project) extends AbstractProjectComponent(project) {
   private val allViewers = new WeakHashMap[Editor, List[(Editor)]]()
   private val allReplPrinters = new WeakHashMap[Editor, WorksheetEditorPrinterBase]()
   private val patchedEditors = new WeakHashMap[Editor, String]()
@@ -76,7 +76,19 @@ class WorksheetCache extends ProjectComponent {
     patchedEditors.remove(editor)
   }
   
-  def getViewer(editor: Editor): Editor = get(editor)
+  def getViewer(editor: Editor): Editor = {
+    val viewer = get(editor)
+    
+    if (viewer != null && viewer.isDisposed || editor.isDisposed) {
+      synchronized {
+        allViewers.remove(editor)
+      }
+      
+      return null
+    }
+    
+    viewer
+  }
 
   def addViewer(viewer: Editor, editor: Editor) {
     synchronized {
@@ -128,12 +140,6 @@ class WorksheetCache extends ProjectComponent {
   override def projectClosed(): Unit = {
     invalidateViewers()
   }
-
-  override def projectOpened(): Unit = { }
-
-  override def initComponent(): Unit = { }
-
-  override def disposeComponent(): Unit = { }
 
   override def getComponentName: String = "WorksheetCache"
 }
