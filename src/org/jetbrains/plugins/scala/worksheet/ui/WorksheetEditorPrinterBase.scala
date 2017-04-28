@@ -6,9 +6,12 @@ import com.intellij.openapi.editor.impl.FoldingModelImpl
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiDocumentManager
+import org.jetbrains.jps.incremental.scala.remote.ServerException
+import org.jetbrains.jps.incremental.scala.remote.worksheet.WorksheetExceptionHandler
 import org.jetbrains.plugins.scala.extensions
 import org.jetbrains.plugins.scala.lang.psi.api.ScalaFile
 import org.jetbrains.plugins.scala.settings.ScalaProjectSettings
+import org.jetbrains.plugins.scala.worksheet.actions.WorksheetFileHook
 import org.jetbrains.plugins.scala.worksheet.ui.WorksheetDiffSplitters.SimpleWorksheetSplitter
 
 /**
@@ -36,10 +39,21 @@ abstract class WorksheetEditorPrinterBase(protected val originalEditor: Editor,
 
   def scheduleWorksheetUpdate(): Unit
 
-  def internalError(errorMessage: String) {
+  def internalError(error: Throwable) {
+    def printError(throwable: Throwable, stackTrace: Array[_]) = simpleUpdate (
+      s"Internal error: ${throwable.getClass.getSimpleName} : ${throwable.getMessage.stripPrefix(WorksheetExceptionHandler.RERUN_MARKER)}\n${stackTrace mkString "\n"}", 
+      viewerDocument
+    )
+    
     extensions.invokeLater {
       extensions.inWriteAction {
-        simpleUpdate("Internal error: " + errorMessage, viewerDocument)
+        error match {
+          case we: ServerException =>
+            printError(we, we.getLines)
+            if (shouldRerun(we)) offerRerun()
+          case other =>
+            printError(other, other.getStackTrace)
+        }
       }
     }
   }
@@ -57,6 +71,12 @@ abstract class WorksheetEditorPrinterBase(protected val originalEditor: Editor,
   protected def saveEvaluationResult(result: String) {
     WorksheetEditorPrinterFactory.saveWorksheetEvaluation(getScalaFile, result, getWorksheetViewersRation)
     redrawViewerDiffs()
+  }
+  
+  protected def shouldRerun(ex: ServerException): Boolean = ex.getMessage.startsWith(WorksheetExceptionHandler.RERUN_MARKER)
+  
+  protected def offerRerun() {
+    WorksheetFileHook.instance(project).installRerunAction(getScalaFile)
   }
   
   protected def cleanFoldings() {
@@ -82,9 +102,9 @@ abstract class WorksheetEditorPrinterBase(protected val originalEditor: Editor,
           override def run() {
             foldings map {
               case (start, end, limit, originalEnd) =>
-                val offset = originalDocument getLineEndOffset java.lang.Math.min(originalEnd, originalDocument.getLineCount) // на какой строчке кончается ввод
-                val linesCount = viewerDocument.getLineNumber(end) - start - limit + 1 // разница между вводом и выводом
-                // правая часть \\ конец оффсета плейсхолдера фолда \\ конец ввода \\ на какой строчке кончается вводе \\ разница между вводом и выводом \\ кол-во строчек в вводе
+                val offset = originalDocument getLineEndOffset java.lang.Math.min(originalEnd, originalDocument.getLineCount)
+                val linesCount = viewerDocument.getLineNumber(end) - start - limit + 1
+
                 new WorksheetFoldRegionDelegate(
                   worksheetViewer, viewerDocument.getLineStartOffset(start + limit - 1), end,
                   offset, linesCount, group, limit

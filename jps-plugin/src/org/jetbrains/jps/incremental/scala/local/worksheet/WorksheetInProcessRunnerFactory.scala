@@ -4,9 +4,9 @@ import java.io.{File, OutputStream, PrintStream}
 import java.lang.reflect.InvocationTargetException
 import java.net.{URL, URLClassLoader}
 
-import com.martiansoftware.nailgun.ThreadLocalPrintStream
 import org.jetbrains.jps.incremental.scala.local.worksheet.WorksheetServer.WorksheetArgs
 import org.jetbrains.jps.incremental.scala.remote.EventGeneratingClient
+import org.jetbrains.jps.incremental.scala.remote.worksheet.WorksheetExceptionHandler
 
 /**
  * User: Dmitry.Naydanov
@@ -72,7 +72,25 @@ class WorksheetInProcessRunnerFactory {
             e, worksheetArgs.nameForST, className + "$" + className
           ).printStackTrace(new PrintStream(out, false))
         case e: Exception =>
-          client trace e
+          val newSt = e.getStackTrace.takeWhile {
+            element => element.getMethodName != "loadAndRun" || element.getClassName != "WorksheetServer"
+          }
+          
+          val (pack, clazz) = {
+            val nms = className.split('.')
+            
+            (nms.take(nms.length - 1).mkString(File.separator), nms.last)
+          }
+          
+          val currentIteration = {
+            try {
+              Integer.parseInt(clazz.stripPrefix("A$A"))
+            } catch {
+              case _: NumberFormatException => 0
+            }
+          }
+          
+          client trace WorksheetExceptionHandler(e, worksheetArgs.worksheetTemp, currentIteration, rerun = true, Some(newSt), pack)
       } finally {
         out.flush()
       }

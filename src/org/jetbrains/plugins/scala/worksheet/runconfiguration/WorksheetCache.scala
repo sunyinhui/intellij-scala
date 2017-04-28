@@ -38,6 +38,10 @@ class WorksheetCache extends ProjectComponent {
     }
   }
   
+  def clearCompilationInfo(filePath: String) {
+    tempFileCache.remove(filePath)
+  }
+  
   def getPrinter(inputEditor: Editor): Option[WorksheetEditorPrinterBase] = Option(allReplPrinters get inputEditor)
   
   def addPrinter(inputEditor: Editor, printer: WorksheetEditorPrinterBase) {
