@@ -51,5 +51,5 @@ trait ScalaSdkOwner {
 
 // Java compatibility
 trait DefaultScalaSdkOwner extends ScalaSdkOwner with TestFixtureProvider {
-  override implicit val version: ScalaVersion = Scala_2_10
+  override implicit val version: ScalaVersion = Scala_2_11
 }

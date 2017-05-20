@@ -1,5 +1,6 @@
 package org.jetbrains.plugins.scaladev;
 
+import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.AbstractProjectComponent;
 import com.intellij.openapi.diagnostic.Logger;
@@ -49,7 +50,8 @@ public class IdeaSourcesAttach extends AbstractProjectComponent {
     }
 
     void attachIdeaSources() {
-        if (!ApplicationManager.getApplication().isInternal()) return;
+        final Application application = ApplicationManager.getApplication();
+        if (!application.isInternal() || application.isUnitTestMode()) return;
         final Set<LibraryOrderEntry> libs = getLibsWithoutSourceRoots();
         LOG.info("Got " + libs.size() + " total IDEA libraries with missing source roots");
         if (libs.isEmpty()) return;
@@ -78,7 +80,7 @@ public class IdeaSourcesAttach extends AbstractProjectComponent {
                 for (LibraryOrderEntry lib : libs) {
                     final Library library = lib.getLibrary();
                     if (library != null && library.getUrls(OrderRootType.SOURCES).length == 0) {
-                        ApplicationManager.getApplication().invokeLater(new Runnable() {
+                        application.invokeLater(new Runnable() {
                             @Override
                             public void run() {
                                 AttachSourcesUtil.appendSources(library, roots.toArray(new VirtualFile[roots.size()]));

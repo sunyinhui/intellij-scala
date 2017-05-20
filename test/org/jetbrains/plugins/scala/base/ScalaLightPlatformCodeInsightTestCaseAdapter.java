@@ -15,9 +15,7 @@ import org.jetbrains.plugins.scala.base.libraryLoaders.LibraryLoader;
 import org.jetbrains.plugins.scala.base.libraryLoaders.ScalaLibraryLoader;
 import org.jetbrains.plugins.scala.base.libraryLoaders.SourcesLoader;
 import org.jetbrains.plugins.scala.base.libraryLoaders.ThirdPartyLibraryLoader;
-import org.jetbrains.plugins.scala.debugger.ScalaSdkOwner;
-import org.jetbrains.plugins.scala.debugger.ScalaVersion;
-import org.jetbrains.plugins.scala.debugger.Scala_2_10$;
+import org.jetbrains.plugins.scala.debugger.*;
 import org.jetbrains.plugins.scala.util.TestUtils;
 import scala.collection.JavaConversions$;
 import scala.collection.Seq;
@@ -53,7 +51,7 @@ public abstract class ScalaLightPlatformCodeInsightTestCaseAdapter extends Light
 
     @Override
     public ScalaVersion version() {
-        return Scala_2_10$.MODULE$;
+        return Scala_2_11$.MODULE$;
     }
 
     @Override

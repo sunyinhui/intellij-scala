@@ -53,10 +53,10 @@ abstract class RehighlightingPerformanceTypingTestBase extends DownloadingAndImp
   }
 
   override def tearDown(): Unit = {
+    tearDownLibraries()
+
     myCodeInsightTestFixture.tearDown()
     myCodeInsightTestFixture = null
-
-    tearDownLibraries()
     super.tearDown()
   }
 

@@ -9,9 +9,7 @@ import org.jetbrains.plugins.scala.base.libraryLoaders.JdkLoader;
 import org.jetbrains.plugins.scala.base.libraryLoaders.JdkLoader$;
 import org.jetbrains.plugins.scala.base.libraryLoaders.LibraryLoader;
 import org.jetbrains.plugins.scala.base.libraryLoaders.ScalaLibraryLoader;
-import org.jetbrains.plugins.scala.debugger.ScalaSdkOwner;
-import org.jetbrains.plugins.scala.debugger.ScalaVersion;
-import org.jetbrains.plugins.scala.debugger.Scala_2_10$;
+import org.jetbrains.plugins.scala.debugger.*;
 import org.jetbrains.plugins.scala.util.TestUtils;
 import org.junit.runner.RunWith;
 import org.junit.runners.AllTests;
@@ -31,7 +29,7 @@ public class IntroduceVariableTest extends AbstractIntroduceVariableTestBase imp
 
     @Override
     public ScalaVersion version() {
-        return Scala_2_10$.MODULE$;
+        return Scala_2_11$.MODULE$;
     }
 
     public IntroduceVariableTest() {

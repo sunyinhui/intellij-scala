@@ -22,7 +22,7 @@ import com.intellij.util.ui.UIUtil
 import org.jetbrains.plugins.scala.ScalaLanguage
 import org.jetbrains.plugins.scala.annotator.{AnnotatorHolderMock, ScalaAnnotator}
 import org.jetbrains.plugins.scala.base.libraryLoaders.{JdkLoader, LibraryLoader, ScalaLibraryLoader}
-import org.jetbrains.plugins.scala.debugger.Scala_2_10
+import org.jetbrains.plugins.scala.debugger.Scala_2_11
 import org.jetbrains.plugins.scala.lang.psi.api.ScalaFile
 import org.jetbrains.plugins.scala.lang.psi.api.statements.ScFunctionDefinition
 import org.jetbrains.plugins.scala.lang.psi.impl.ScalaPsiManager
@@ -68,7 +68,7 @@ class MemoryLeakTest extends PlatformTestCase {
     UIUtil.dispatchAllInvocationEvents()
     myProject = null
 
-    librariesLoaders.foreach(_.init(Scala_2_10))
+    librariesLoaders.foreach(_.init(Scala_2_11))
 
     project
   }
